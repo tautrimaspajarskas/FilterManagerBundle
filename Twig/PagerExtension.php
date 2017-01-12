@@ -11,7 +11,7 @@
 
 namespace ONGR\FilterManagerBundle\Twig;
 
-use ONGR\FilterManagerBundle\Pager\PagerService;
+use ONGR\FilterManagerBundle\Filter\ViewData\PagerAwareViewData;
 use Symfony\Component\Routing\RouterInterface;
 
 /**
@@ -30,11 +30,6 @@ class PagerExtension extends \Twig_Extension
     protected $router;
 
     /**
-     * @var \Twig_Environment
-     */
-    protected $environment;
-
-    /**
      * @param RouterInterface $router
      */
     public function __construct(RouterInterface $router)
@@ -45,18 +40,14 @@ class PagerExtension extends \Twig_Extension
     /**
      * {@inheritdoc}
      */
-    public function initRuntime(\Twig_Environment $environment)
-    {
-        $this->environment = $environment;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function getFunctions()
     {
         return [
-            new \Twig_SimpleFunction('ongr_paginate', [$this, 'paginate'], ['is_safe' => ['html']]),
+            new \Twig_SimpleFunction(
+                'ongr_paginate',
+                [$this, 'paginate'],
+                ['is_safe' => ['html'], 'needs_environment' => true]
+            ),
             new \Twig_SimpleFunction('ongr_paginate_path', [$this, 'path'], ['is_safe' => []]),
         ];
     }
@@ -64,20 +55,23 @@ class PagerExtension extends \Twig_Extension
     /**
      * Renders pagination element.
      *
-     * @param PagerService $pager
-     * @param string       $route
-     * @param array        $parameters
-     * @param string       $template
+     * @param \Twig_Environment  $env
+     * @param PagerAwareViewData $pager
+     * @param string             $route
+     * @param array              $parameters
+     * @param string             $template
      *
      * @return string
      */
     public function paginate(
-        PagerService $pager,
+        \Twig_Environment $env,
+        $pager,
         $route,
         array $parameters = [],
         $template = 'ONGRFilterManagerBundle:Pager:paginate.html.twig'
     ) {
-        return $this->environment->render(
+
+        return $env->render(
             $template,
             ['pager' => $pager, 'route' => $route, 'parameters' => $parameters]
         );
@@ -99,11 +93,6 @@ class PagerExtension extends \Twig_Extension
         if (isset($parameters['_page'])) {
             $fieldName = $parameters['_page'];
             unset($parameters['_page']);
-        }
-
-        // Do not include default values into parameters.
-        if ($page <= 1) {
-            return $this->router->generate($route, $parameters);
         }
 
         $parameters[$fieldName] = $page;
